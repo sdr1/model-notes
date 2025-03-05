@@ -1,0 +1,564 @@
+---
+title: "Models"
+author: "Steven Rashin"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    fig-align: center
+    cap-location: margin
+    citeproc: false
+    filters: [citeproc.lua, wordcount.lua] # https://github.com/andrewheiss/quarto-wordcount
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+This review contains brief summaries of methods you're likely to
+encounter in an interview. For each model we list the what type of
+problem you can use it on, the assumptions, advantages, disadvantages,
+and code for the model.
+
+## Which Model Should I Use?
+
+1.  Are we using large amounts of text as data in a way we can't easily
+    reduce to some numeric value?
+    -   Yes
+        -   See Text as Data book
+    -   No
+        -   Continue
+2.  Is there a y/class label/response variable?
+    -   No $\rightarrow$ Unsupervised Learning
+        -   This class of models takes unlabeled data and tries to
+            discover hidden patterns in the data. I.e we want to use the
+            data to create rules
+        -   Examples
+            -   K-means clustering
+            -   Dimensionality reduction such as Principal Components
+                Analysis (PCA)
+            -   Topic Modeling (there are supervised versions though!)
+    -   Yes $\rightarrow$ Supervised Learning
+        -   This class of models takes some labeled data and tries to
+            create more labeled data. "It is defined by its use of
+            labeled datasets to train algorithms that to classify data
+            or predict outcomes accurately."
+        -   Examples
+            -   Neural Networks
+            -   Naive Bayes
+            -   Linear Regression
+            -   Logistic Regression
+            -   Support Vector Machines
+            -   K-nearest neighbor
+            -   Random Forrest
+3.  Do we want to classify each individual unit? Or some grouping of the
+    unit
+    -   Each unit $\rightarrow$ Non-parametric (literally no global
+        parameter)
+        -   Kernel regression
+        -   Deep learning
+        -   K-Nearest Neighbors
+    -   Classify a group of units, including the whole population
+        $\rightarrow$ parametric
+        -   Ordinary Least Squares
+        -   Logistic Regression
+        -   Decision Trees/Random Forest
+
+| Task $\downarrow$ / Global Class $\rightarrow$ | Parametric                                                         | Non-Parametric                   |
+|------------------------------------------------|--------------------------------------------------------------------|----------------------------------|
+| Regression/Continuous Outcome                  | Regression (OLS)                                                   | kernel regression                |
+| Classification/Discrete Outcome                | GLMs like Logistic Regression/Poisson Regression/Multinomial Logit | Deep Learning, Nearest Neighbors |
+
+: When to use models {.striped .hover}
+
+## Metrics
+
+| Test $\downarrow$ / True Result $\rightarrow$ | True                | False               |
+|-----------------------------------------------|---------------------|---------------------|
+| True (test is true)                           | True Positive (TP)  | False Positive (FP) |
+| False (test is false)                         | False Negative (FN) | True Negative (TN)  |
+
+**Precision** (precision is positives) Fraction of everything that is
+classified/tested as positive that is positive
+$\frac{\text{TP}}{\text{TP + FP}}$
+
+**Recall** $\frac{\text{TP}}{\text{TP + FN}}$ Fraction of everything
+that is actually positive classified as positive
+
+There's a tradeoff between precision and recall. With precision you care
+about the percentage of true positives among everything classified as
+positive. With recall you care about the percentage of true positives
+among everything that is actually positive. Suppose we care about
+treating patients -- false negatives mean that we don't catch the
+disease while false positives mean people get treated when they didn't
+need treatment. Which is worse depends on the context
+
+**Sensitivity** is recall ($\frac{\text{TP}}{\text{TP + FN}}$)
+
+**Specificity** $\frac{\text{TN}}{\text{TN + FP}}$
+
+**True Positive Rate** sensitivity/recall
+$\frac{\text{TP}}{\text{TP + FN}}$. Y-axis of ROC curve
+
+**False Positive Rate** 1 - specificity. X-axis of ROC curve.
+$\frac{\text{FP}}{\text{FP + TP}}$
+
+**Accuracy** $\frac{\text{TP+TN}}{\text{TP + TN + FP + FN}}$ - With
+balanced classes, a good measure\
+- With imbalanced classes, accuracy can be misleading. Suppose we have
+99% non-fraud and 1% fraud, if we just predict everything as not-fraud
+our model will have 99% accuracy!
+
+## Linear Regression
+
+**When to use it**
+
+If we want to explain a phenomenon
+
+**Assumptions:**
+
+It depends on how we motivate the regression. If we're using linear
+algebra and want to estimate a population parameter, we use the
+Gauss-Markov assumptions.
+
+1.  Linearity in parameters (i.e. assume the data is generated in
+    $Y_i = X\beta_i + \epsilon_i$
+2.  Variation in X/Full rank matrix/no multicollinearity
+3.  Random sample from the population/X generated from a mechanism
+    unrelated to $\epsilon$
+4.  Zero conditional mean. This means that the disturbances ($\epsilon$)
+    average out to 0 for any value of X (the $n \times k$ matrix of
+    predictor variables). This is important because it means that we get
+    the mean function $\mathbb{E}[{y}]=X\beta$ correct
+5.  Homoskedasticity. This means that $\mathbb{E}[ee'|X]=\sigma^2I$
+
+If we motivate OLS using Maximum Likelihood, then we're assuming
+
+1.  No dependent observations. I.e. $Y_1, Y_2, \dots, Y_n$ are
+    independently distributed
+2.  $Y_i$ is distributed normally. This is NOT the case for Gauss-Markov
+3.  No multicollinearity among predictors.
+4.  No influential values (extreme values or outliers) in the continuous
+    predictors.
+5.  Linear relationship between continuous predictor variables and the
+    outcome
+
+See e.g., <https://online.stat.psu.edu/stat504/lesson/6/6.1>
+
+If we motivate it using the Best Linear Predictor Theorem
+
+**Advantages**
+
+-   It's fast
+-   If the data generating process is linear, this is the model
+
+**Disadvantages**
+
+-   It's linear in parameters - so if you can't transform the data into
+    something linear then you'll have high bias
+-   Sensitive to outliers
+
+**Code/Pseudo Code**
+
+```{r}
+library(modelsummary)
+model <- lm(mpg ~ disp + hp, data = mtcars)
+modelsummary::modelsummary(model)
+```
+
+## Logistic Regression
+
+**When to use it**
+
+When you have a classification problem with 2 classes and linear
+predictors. If you have more predictors you can use a multinomial logit.
+
+**Assumptions**
+
+1.  No dependent observations. I.e. $Y_1, Y_2, \dots, Y_n$ are
+    independently distributed
+2.  $Y_i$ is distributed binomially I.e $y\sim$ Binomial
+    ($\binom{n}{k}p^k(1-p)^{n-k}$)
+3.  No multicollinearity among predictors.
+4.  No influential values (extreme values or outliers) in the continuous
+    predictors.
+5.  Linear relationship between continuous predictor variables and the
+    logit transformation of the outcome
+
+**Advantages**
+
+Computationally efficient
+
+**Disadvantages**
+
+This algorithm uses a linear decision surface to classify data, so it
+becomes problematic when there are non-linear problems.
+
+**Code/Pseudo Code**
+
+1.  We need three things to use a glm: the random component (the
+    distribution of y), the systemic component (a linear predictor) and
+    a link function. We can also
+
+    -   Here the random component/distribution of y is that the
+        dependent variables are distributed as a Bernoulli random
+        variable.
+        $Y_i \sim \text{Bernoulli}(y_i|\pi_i) = \pi^{y_i}(1-\pi_i)^{1-y_i}$
+    -   The systematic component/linear predictor is that we can express
+        the variables using the form $X\beta$ where X is an n by k
+        matrix and $\beta$ is a k by 1 vector.
+    -   The link function (that links/relates the linear predictor to
+        the mean of the distribution) is the sigmoid
+        $Pr(Y_i = 1|\beta) \equiv E(Y_i) \equiv \pi_i = \frac{1}{1 + e^{-x_i\beta}}$
+
+2.  Derive the log-likelihood
+
+3.  Estimate the parameters using maximum likelihood.
+
+```{r}
+model <- glm(formula = am ~ mpg + cyl, family = binomial, data = mtcars)
+modelsummary(model)
+```
+
+See slide 192 (among others)
+
+-   <https://bstewart.scholar.princeton.edu/sites/g/files/toruqf4016/files/bstewart/files/lecture4_glm_slides.pdf>
+
+## KNN (K-Nearest Neighbour)
+
+**When to use it** It's a nonparametric classification algorithm
+
+The value of K controls the bias-variance • With a small K, there is a
+potential for overfitting • imagine K = 1 would be very susceptible to
+changes in the data • low bias and high variance • smaller values of K
+tend to work best for high signal data with very few noisy (irrelevant)
+predictors • With a large K, there is a potential to underfit • too many
+potentially irrelevant data points are used for prediction • high bias
+and lower variance • larger values of K tend to work best for data with
+more noisy (irrelevant) predictors in order to smooth out the noise
+
+**Assumptions**
+
+Requires the predictors to be in common units because the distance
+between predictors are used directly (like ridge, lasso models, elastic
+net, and support vector machines)
+
+**Advantages**
+
+**Disadvantages**
+
+There is no training or model fitting stage • A KNN model literally
+stores the training data and uses it only at prediction time • Thus,
+each training instance represents a parameter in KNN model •
+Computationally inefficient
+
+**Code/Pseudo Code**
+
+https://www.tmwr.org/pre-proc-table.html
+
+https://uo-datasci-specialization.github.io/c4-ml-fall-2020/slides/w6p1-knn/w6p1.pdf
+
+```{r}
+library(tidymodels)
+
+#
+nearest_neighbor(neighbors = 5, dist_power = 1) |> # dist_power = 1 for Manhattan distance, 2 for euclidian
+  set_engine('kknn') |>
+  set_mode('classification')
+```
+
+## Naive Bayes
+
+**When to use it**
+
+For classification problems.
+
+The naïve Bayes classifier is often hard to beat in terms of CPU and
+memory consumption.
+
+**Assumptions**
+
+\- Each feature/attribute present in the dataset is independent of
+another (that's the naive part). This often isn't true in real life!\
+- Each feature carries equal importance
+
+**Advantages**
+
+The naive Bayes classifier is simple (both intuitively and
+computationally), fast, performs well with small amounts of training
+data, and scales well to large data sets.
+
+**Disadvantages**
+
+The greatest weakness of the naïve Bayes classifier is that it relies on
+an often-faulty assumption of equally important and independent features
+which results in biased posterior probabilities. Although this
+assumption is rarely met, in practice, this algorithm works surprisingly
+well. This is primarily because what is usually needed is not a
+propensity (exact posterior probability) for each record that is
+accurate in absolute terms but just a reasonably accurate rank ordering
+of propensities.
+
+Another disadvantage of this algorithm is the 'zero-frequency problem'
+where the model assigns value zero for those features in the test
+dataset that were not present in the training dataset. You can offset
+this with a Laplace Correction by adding counts to each conditional
+probability so that no category is empty
+
+**Code/Pseudo Code**
+
+1.  Imagine you have a dataset of boolean values (they can be real
+    values, but that gets more complicated because you compute
+    probabilities using the probability density function of the
+    variable). Suppose you want to explain 4 mutually exclusive states
+    of the world (healthy/covid/flu/norovirus) using 4 symptoms
+    (cough/fever/soreness of breath/vomiting)
+
+2.  For every state of the world (e.g. healthy) you run the data through
+    Bayes rule
+
+    $$
+    \Pr(\text{healthy | symptoms}) =  \frac{\Pr(\text{symptoms | healthy})}{\Pr(\text{symptoms})}
+    $$
+
+3.  You decompose the denominator to account for the combination of all
+    symptoms and all states using the counts of the portion of
+    conditions/diseases that have that symptom
+
+4.  You can use the resulting conditional probabilities to predict
+    someone's class given their symptoms
+
+## Support Vector Machine
+
+**When to use it**
+
+For classification. It's fast
+
+Support Vector Classifiers are a subset of the group of classification
+structures known as *Support Vector Machines*. Support Vector Machines
+can construct classification boundaries that are nonlinear in shape.
+
+**Assumptions**
+
+**Advantages**
+
+**Disadvantages**
+
+**Code/Pseudo Code**
+
+## Decision Trees {#sec-dtree}
+
+**When to use it**
+
+When you have a classification or regression problem. **BUT** You really
+only use random forests. These are useful in understanding how random
+forests are built.
+
+**Assumptions**
+
+No distributional assumptions
+
+Assuming that the data is a random sample
+
+**Advantages**
+
+They are very interpret-able.
+
+Making predictions is fast (no complicated calculations, just looking up
+constants in the tree).
+
+It's easy to understand what variables are important in making the
+prediction. The internal nodes (splits) are those variables that most
+largely reduced the SSE.
+
+If some data is missing, we might not be able to go all the way down the
+tree to a leaf, but we can still make a prediction by averaging all the
+leaves in the sub-tree we do reach.
+
+The model provides a non-linear "jagged" response, so it can work when
+the true regression surface is not smooth. If it is smooth, though, the
+piecewise-constant surface can approximate it arbitrarily closely (with
+enough leaves).
+
+There are fast, reliable algorithms to learn these trees.
+
+**Disadvantages**
+
+Single regression trees have high variance, resulting in unstable
+predictions (an alternative subsample of training data can significantly
+change the terminal nodes).
+
+Due to the high variance single regression trees have poor predictive
+accuracy.
+
+Not always possible to find the optimal split
+
+**Pseudo Code**
+
+Imagine you have 3 pieces of information - an output (y), and two inputs
+($x_1$ and $x_2$).
+
+1.  Use a greedy (i.e. best for *this* iteration and not all iterations)
+    split on $x_1$ using
+    $$\text{minimize} \left\{ SSE=\sum_{i\in R_1} (y_i - c_1)^2 + \sum_{i \in R_2} (y_i - c_2)^2\right\}$$
+
+In the equation above, $c_1$ and $c_2$ are the values of $y$ in $R_1$
+and $R_2$ respectively.
+
+2.  Now you have a tree with two branches. For **EACH INDIVUAL BRANCH**,
+    split again. You can split on $x_2$ or the original $x_1$
+
+3.  Build a large tree, then prune back using the following metric:
+    $$\text{minimize}\left\{ SSE + \alpha|t| \right\} $$ Above, the
+    equation states that we find the optimal subtree by using a cost
+    complexity parameter ($\alpha$) that penalizes our objective
+    function in Eq. 2 for the number of terminal nodes of the tree (T)
+    as in Eq. 3.
+
+4.  Tune the tree, you can specify a minimum number of data points
+    required for a node. You can also specify a maximum depth
+
+**Sources**
+
+<https://datascience.stackexchange.com/questions/6015/assumptions-limitations-of-random-forest-models>\
+<http://uc-r.github.io/regression_trees>
+
+## Random Forest
+
+**When to use it** When you have a classification or regression problem
+and you need to predict an outcome. I.e. you have some y's but you need
+more.
+
+It's a decision tree (see @sec-dtree above), but with bootstrap
+aggregation. Unfortunately, bagging regression trees typically suffers
+from tree correlation (the trees in bagging are not completely
+independent of each other since all the original predictors are
+considered at every split of every tree), which reduces the overall
+performance of the model. Random forests are a modification of bagging
+that builds a large collection of de-correlated trees and have become a
+very popular "out-of-the-box" learning algorithm that enjoys good
+predictive performance.
+
+Random forest combines the output of multiple decision trees to reach a
+single result. Its ease of use and flexibility have fueled its adoption,
+as it handles both classification and regression problems.
+
+**Assumptions**
+
+No formal distributional assumptions, random forests are non-parametric
+and can thus handle skewed and multi-modal data as well as categorical
+data that are ordinal or non-ordinal.
+
+Aampling is representative
+
+**Advantages**
+
+Reduced risk of overfitting: Decision trees run the risk of overfitting
+as they tend to tightly fit all the samples within training data.
+However, when there's a robust number of decision trees in a random
+forest, the classifier won't overfit the model since the averaging of
+uncorrelated trees lowers the overall variance and prediction error.
+
+Provides flexibility: Since random forest can handle both regression and
+classification tasks with a high degree of accuracy, it is a popular
+method among data scientists. Feature bagging also makes the random
+forest classifier an effective tool for estimating missing values as it
+maintains accuracy when a portion of the data is missing.
+
+Easy to determine feature importance: Random forest makes it easy to
+evaluate variable importance, or contribution, to the model. There are a
+few ways to evaluate feature importance. Gini importance and mean
+decrease in impurity (MDI) are usually used to measure how much the
+model's accuracy decreases when a given variable is excluded. However,
+permutation importance, also known as mean decrease accuracy (MDA), is
+another importance measure. MDA identifies the average decrease in
+accuracy by randomly permutating the feature values in oob samples.
+
+**Disadvantages**
+
+Time-consuming process: Since random forest algorithms can handle large
+data sets, they can be provide more accurate predictions, but can be
+slow to process data as they are computing data for each individual
+decision tree.
+
+Requires more resources: Since random forests process larger data sets,
+they'll require more resources to store that data.
+
+More complex: The prediction of a single decision tree is easier to
+interpret when compared to a forest of them.
+
+**Pseudo Code**
+
+1.  At each step of building individual tree we find the best split of
+    data
+
+2.  While building a tree we use not the whole dataset, but bootstrap
+    sample
+
+3.  We aggregate the individual tree outputs by averaging (actually 2
+    and 3 means together more general bagging procedure).
+
+**Actual Code**
+
+```{r}
+library(rsample)      # data splitting 
+library(randomForest) # basic implementation
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # an aggregator package for performing many machine learning models
+library(h2o)          # an extremely fast java-based platform
+
+```
+
+**Source** - -
+<https://www.ibm.com/topics/random-forest#:~:text=Random%20forest%20is%20a%20commonly,both%20classification%20and%20regression%20problems.> -
+<http://uc-r.github.io/predictive>
+
+## XGBoost
+
+**What is it** Random forests use bagging to build independent decision
+trees and combine them in parallel. On the other hand, gradient boosted
+trees use a method called boosting. Boosting combines weak learners
+(usually decision trees with only one split, called decision stumps)
+sequentially, so that each new tree corrects the errors of the previous
+one.
+
+Whereas random forests build an ensemble of deep independent trees, GBMs
+build an ensemble of shallow and weak successive trees with each tree
+learning and improving on the previous. When combined, these many weak
+successive trees produce a powerful "committee" that are often hard to
+beat with other algorithms.
+
+**When to use it**
+
+**Assumptions**
+
+**Advantages**
+
+Often provides predictive accuracy that cannot be beat.
+
+Lots of flexibility - can optimize on different loss functions and
+provides several hyperparameter tuning options that make the function
+fit very flexible.
+
+No data pre-processing required - often works great with categorical and
+numerical values as is.
+
+Handles missing data - imputation not required.
+
+**Disadvantages**
+
+GBMs will continue improving to minimize all errors. This can
+overemphasize outliers and cause overfitting. Must use cross-validation
+to neutralize.
+
+Computationally expensive - GBMs often require many trees (\>1000) which
+can be time and memory exhaustive.
+
+The high flexibility results in many parameters that interact and
+influence heavily the behavior of the approach (number of iterations,
+tree depth, regularization parameters, etc.). This requires a large grid
+search during tuning.
+
+Less interpretable although this is easily addressed with various tools
+(variable importance, partial dependence plots, LIME, etc.).
+
+**Code/Pseudo Code**
